@@ -133,6 +133,6 @@ All tasks and bugs will be posted in the Issues section of this repository.
 --- 
 ## 👨‍💻 Project Leader
 
-**BELMIOULD Nada:**
+**BELMILOUD Nada:**
 
 Responsible for code review, task assignment, and repository management.
