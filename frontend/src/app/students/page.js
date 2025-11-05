@@ -1,4 +1,4 @@
-import DataTable from '@/components/DataTable';
+import DataTable from '../../components/DataTable';
 
 export default function StudentsPage() {
     const columns = ['Name', 'Email', 'Phone', 'License Type'];
