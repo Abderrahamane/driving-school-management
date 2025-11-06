@@ -2,16 +2,20 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAuth, redirectByRole } from '@/lib/auth';
+import { getUserRole } from '@/lib/auth';
 import Loader from '@/components/Loader';
 
-export default function HomePage() {
+export default function DashboardRedirect() {
     const router = useRouter();
 
     useEffect(() => {
-        const auth = getAuth();
-        if (auth) {
-            router.push(redirectByRole(auth.user.role));
+        const role = getUserRole();
+        if (role === 'admin' || role === 'super-admin') {
+            router.push('/dashboard/admin');
+        } else if (role === 'instructor') {
+            router.push('/dashboard/instructor');
+        } else if (role === 'student') {
+            router.push('/dashboard/student');
         } else {
             router.push('/login');
         }

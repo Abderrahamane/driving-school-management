@@ -7,8 +7,8 @@ import {
     deleteStudent,
     getStudentStats
 } from "../controllers/student.controller.js";
-import { protect } from "../middleware/validation.middleware.js";
-import { validateStudent } from "../middleware/validation.middleware.js";
+import { protect } from "../middleware/auth.middleware.js";
+import { validateStudent } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 

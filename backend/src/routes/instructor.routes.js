@@ -7,8 +7,8 @@ import {
     deleteInstructor,
     getInstructorSchedule
 } from "../controllers/instructor.controller.js";
-import { protect } from "../middleware/validation.middleware.js";
-import { validateInstructor } from "../middleware/validation.middleware.js";
+import { protect } from "../middleware/auth.middleware.js";
+import { validateInstructor } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 

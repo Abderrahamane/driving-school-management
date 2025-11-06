@@ -9,8 +9,8 @@ import {
     getLessonStats,
     completeLesson
 } from "../controllers/lesson.controller.js";
-import { protect } from "../middleware/validation.middleware.js";
-import { validateLesson } from "../middleware/validation.middleware.js";
+import { protect } from "../middleware/auth.middleware.js";
+import { validateLesson } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 

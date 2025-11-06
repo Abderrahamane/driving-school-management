@@ -10,8 +10,8 @@ import {
     addMaintenanceRecord,
     getVehicleStats
 } from "../controllers/vehicle.controller.js";
-import { protect } from "../middleware/validation.middleware.js";
-import { validateVehicle } from "../middleware/validation.middleware.js";
+import { protect } from "../middleware/auth.middleware.js";
+import { validateVehicle } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 

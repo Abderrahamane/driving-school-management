@@ -10,8 +10,8 @@ import {
     getPendingPayments,
     markAsPaid
 } from "../controllers/payment.controller.js";
-import { protect } from "../middleware/validation.middleware.js";
-import { validatePayment } from "../middleware/validation.middleware.js";
+import { protect } from "../middleware/auth.middleware.js";
+import { validatePayment } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
