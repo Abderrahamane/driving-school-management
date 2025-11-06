@@ -55,14 +55,6 @@ export default function Sidebar({ userRole }) {
                     );
                 })}
             </nav>
-
-            {/* User Role Badge */}
-            <div className="absolute bottom-6 left-4 right-4">
-                <div className="bg-blue-700 rounded-lg p-3 text-center">
-                    <p className="text-xs text-blue-300">Logged in as</p>
-                    <p className="font-semibold capitalize">{userRole}</p>
-                </div>
-            </div>
         </aside>
     );
 }
