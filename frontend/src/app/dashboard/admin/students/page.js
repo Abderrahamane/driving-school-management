@@ -1,5 +1,3 @@
-'use client';
-
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetch } from '@/hooks/useFetch';
@@ -9,7 +7,7 @@ import Navbar from '@/components/Navbar';
 import Loader from '@/components/Loader';
 import Modal from '@/components/Modal';
 import Toast from '@/components/Toast';
-import { Plus, Edit, Trash2, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Filter, Download, Eye } from 'lucide-react';
 
 export default function StudentsPage() {
     const { user, loading: authLoading } = useAuth(true, ['admin', 'super-admin']);
@@ -97,34 +95,51 @@ export default function StudentsPage() {
     if (authLoading) return <Loader fullScreen />;
 
     return (
-        <div className="flex bg-gray-100 min-h-screen">
+        <div className="flex bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
             <Sidebar userRole={user?.role} />
-            <main className="flex-1 p-6">
+            <main className="flex-1 p-6 overflow-y-auto">
                 <Navbar user={user} />
 
                 {toast && <Toast {...toast} onClose={() => setToast(null)} />}
 
-                <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-3xl font-bold text-gray-800">Students Management</h1>
-                    <button
-                        onClick={() => handleOpenModal()}
-                        className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                    >
-                        <Plus size={20} />
-                        Add Student
-                    </button>
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-800 mb-2">Students Management</h1>
+                        <p className="text-gray-600">Manage and track all your students in one place</p>
+                    </div>
+                    <div className="flex gap-3">
+                        <button className="flex items-center gap-2 bg-white text-gray-700 px-4 py-2.5 rounded-xl hover:bg-gray-50 shadow-md transition-all">
+                            <Download size={20} />
+                            Export
+                        </button>
+                        <button
+                            onClick={() => handleOpenModal()}
+                            className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-2.5 rounded-xl hover:from-blue-700 hover:to-blue-800 shadow-lg transition-all transform hover:scale-105"
+                        >
+                            <Plus size={20} />
+                            Add Student
+                        </button>
+                    </div>
                 </div>
 
-                <div className="bg-white rounded-lg shadow mb-6 p-4">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                        <input
-                            type="text"
-                            placeholder="Search students..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
+                <div className="bg-white rounded-2xl shadow-lg mb-6 p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="md:col-span-2">
+                            <div className="relative">
+                                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                                <input
+                                    type="text"
+                                    placeholder="Search students by name, email, or phone..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                />
+                            </div>
+                        </div>
+                        <button className="flex items-center justify-center gap-2 px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">
+                            <Filter size={20} />
+                            Filters
+                        </button>
                     </div>
                 </div>
 
@@ -133,139 +148,73 @@ export default function StudentsPage() {
                         <Loader size="lg" />
                     </div>
                 ) : (
-                    <div className="bg-white rounded-lg shadow overflow-hidden">
-                        <table className="w-full">
-                            <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">License</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
-                            </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                            {data?.data?.map((student) => (
-                                <tr key={student._id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{student.name}</td>
-                                    <td className="px-6 py-4 text-sm text-gray-600">{student.email}</td>
-                                    <td className="px-6 py-4 text-sm text-gray-600">{student.phone}</td>
-                                    <td className="px-6 py-4 text-sm text-gray-600">{student.licenseType}</td>
-                                    <td className="px-6 py-4 text-sm">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          student.status === 'active' ? 'bg-green-100 text-green-800' :
-                              student.status === 'completed' ? 'bg-blue-100 text-blue-800' :
-                                  'bg-gray-100 text-gray-800'
-                      }`}>
-                        {student.status}
-                      </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-right text-sm space-x-2">
-                                        <button
-                                            onClick={() => handleOpenModal(student)}
-                                            className="text-blue-600 hover:text-blue-800"
-                                        >
-                                            <Edit size={18} />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(student._id)}
-                                            className="text-red-600 hover:text-red-800"
-                                        >
-                                            <Trash2 size={18} />
-                                        </button>
-                                    </td>
+                    <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                                <tr>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Student</th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Contact</th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">License</th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                                 </tr>
-                            ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                {data?.data?.map((student) => (
+                                    <tr key={student._id} className="hover:bg-gray-50 transition-all">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center space-x-3">
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold">
+                                                    {student.name.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-semibold text-gray-800">{student.name}</p>
+                                                    <p className="text-xs text-gray-500">{student.email}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-600">{student.phone}</td>
+                                        <td className="px-6 py-4">
+                                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                                                    Type {student.licenseType}
+                                                </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                                                    student.status === 'active' ? 'bg-green-100 text-green-800' :
+                                                        student.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                                                            'bg-gray-100 text-gray-800'
+                                                }`}>
+                                                    {student.status}
+                                                </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <button
+                                                    onClick={() => handleOpenModal(student)}
+                                                    className="p-2 rounded-lg hover:bg-blue-50 text-blue-600 transition-all"
+                                                >
+                                                    <Edit size={18} />
+                                                </button>
+                                                <button className="p-2 rounded-lg hover:bg-green-50 text-green-600 transition-all">
+                                                    <Eye size={18} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(student._id)}
+                                                    className="p-2 rounded-lg hover:bg-red-50 text-red-600 transition-all"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 )}
-
-                <Modal
-                    isOpen={isModalOpen}
-                    onClose={handleCloseModal}
-                    title={editingStudent ? 'Edit Student' : 'Add New Student'}
-                >
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                            <input
-                                type="text"
-                                required
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                            <input
-                                type="email"
-                                required
-                                value={formData.email}
-                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                            <input
-                                type="tel"
-                                required
-                                value={formData.phone}
-                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                            <input
-                                type="text"
-                                value={formData.address}
-                                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">License Type</label>
-                            <select
-                                value={formData.licenseType}
-                                onChange={(e) => setFormData({ ...formData, licenseType: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            >
-                                <option value="A">A - Motorcycle</option>
-                                <option value="B">B - Car</option>
-                                <option value="C">C - Truck</option>
-                                <option value="D">D - Bus</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
-                            <input
-                                type="date"
-                                value={formData.dateOfBirth}
-                                onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-                        <div className="flex justify-end gap-3 mt-6">
-                            <button
-                                type="button"
-                                onClick={handleCloseModal}
-                                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                            >
-                                {editingStudent ? 'Update' : 'Create'}
-                            </button>
-                        </div>
-                    </form>
-                </Modal>
             </main>
         </div>
     );
