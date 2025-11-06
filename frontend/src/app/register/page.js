@@ -2,15 +2,20 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogIn } from 'lucide-react';
+import { UserPlus } from 'lucide-react';
 import { authAPI } from '@/lib/api';
 import { setAuth, redirectByRole } from '@/lib/auth';
 import Toast from '@/components/Toast';
 import Loader from '@/components/Loader';
 
-export default function LoginPage() {
+export default function RegisterPage() {
     const router = useRouter();
-    const [formData, setFormData] = useState({ email: '', password: '' });
+    const [formData, setFormData] = useState({
+        name: '',
+        email: '',
+        password: '',
+        role: 'admin',
+    });
     const [loading, setLoading] = useState(false);
     const [toast, setToast] = useState(null);
 
@@ -23,11 +28,11 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
-            const response = await authAPI.login(formData);
+            const response = await authAPI.register(formData);
             const { token, ...user } = response.data.data;
 
             setAuth(token, user);
-            setToast({ type: 'success', message: 'Login successful!' });
+            setToast({ type: 'success', message: 'Registration successful!' });
 
             setTimeout(() => {
                 router.push(redirectByRole(user.role));
@@ -35,7 +40,7 @@ export default function LoginPage() {
         } catch (error) {
             setToast({
                 type: 'error',
-                message: error.response?.data?.error || 'Login failed'
+                message: error.response?.data?.error || 'Registration failed'
             });
         } finally {
             setLoading(false);
@@ -43,19 +48,32 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-green-100">
             {toast && <Toast {...toast} onClose={() => setToast(null)} />}
 
             <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-                        <LogIn className="text-blue-600" size={32} />
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+                        <UserPlus className="text-green-600" size={32} />
                     </div>
-                    <h1 className="text-3xl font-bold text-gray-800">Welcome Back</h1>
-                    <p className="text-gray-600 mt-2">Login to your account</p>
+                    <h1 className="text-3xl font-bold text-gray-800">Create Account</h1>
+                    <p className="text-gray-600 mt-2">Register as an admin</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                        <input
+                            type="text"
+                            name="name"
+                            value={formData.name}
+                            onChange={handleChange}
+                            required
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                            placeholder="John Doe"
+                        />
+                    </div>
+
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                         <input
@@ -64,7 +82,7 @@ export default function LoginPage() {
                             value={formData.email}
                             onChange={handleChange}
                             required
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                             placeholder="admin@example.com"
                         />
                     </div>
@@ -77,7 +95,8 @@ export default function LoginPage() {
                             value={formData.password}
                             onChange={handleChange}
                             required
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            minLength={6}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                             placeholder="••••••••"
                         />
                     </div>
@@ -85,16 +104,16 @@ export default function LoginPage() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                        className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition flex items-center justify-center gap-2 disabled:opacity-50"
                     >
-                        {loading ? <Loader size="sm" /> : 'Login'}
+                        {loading ? <Loader size="sm" /> : 'Create Account'}
                     </button>
                 </form>
 
                 <p className="text-center text-gray-600 mt-6">
-                    Don't have an account?{' '}
-                    <a href="/register" className="text-blue-600 font-semibold hover:underline">
-                        Register
+                    Already have an account?{' '}
+                    <a href="/login" className="text-green-600 font-semibold hover:underline">
+                        Login
                     </a>
                 </p>
             </div>

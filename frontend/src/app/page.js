@@ -1,8 +1,21 @@
-export default function Dashboard() {
-    return (
-        <div>
-            <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
-            <p>Welcome to the Driving School Management Dashboard.</p>
-        </div>
-    );
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { getAuth, redirectByRole } from '@/lib/auth';
+import Loader from '@/components/Loader';
+
+export default function HomePage() {
+    const router = useRouter();
+
+    useEffect(() => {
+        const auth = getAuth();
+        if (auth) {
+            router.push(redirectByRole(auth.user.role));
+        } else {
+            router.push('/login');
+        }
+    }, [router]);
+
+    return <Loader fullScreen />;
 }
