@@ -1,12 +1,28 @@
 import express from "express";
-import { protect } from "../middleware/auth.middleware.js";
-import { getVehicles, addVehicle, updateVehicle, deleteVehicle } from "../controllers/vehicle.controller.js";
+import {
+    getVehicles,
+    getVehicle,
+    addVehicle,
+    updateVehicle,
+    deleteVehicle,
+    getVehicleAvailability,
+    getVehicleMaintenanceHistory,
+    addMaintenanceRecord,
+    getVehicleStats
+} from "../controllers/vehicle.controller.js";
+import { protect } from "../middleware/validation.middleware.js";
+import { validateVehicle } from "../middleware/validation.middleware.js";
 
 const router = express.Router();
 
+router.get("/stats", protect, getVehicleStats);
 router.get("/", protect, getVehicles);
-router.post("/", protect, addVehicle);
-router.put("/:id", protect, updateVehicle);
+router.get("/:id", protect, getVehicle);
+router.get("/:id/availability", protect, getVehicleAvailability);
+router.get("/:id/maintenance", protect, getVehicleMaintenanceHistory);
+router.post("/:id/maintenance", protect, addMaintenanceRecord);
+router.post("/", protect, validateVehicle, addVehicle);
+router.put("/:id", protect, validateVehicle, updateVehicle);
 router.delete("/:id", protect, deleteVehicle);
 
 export default router;
