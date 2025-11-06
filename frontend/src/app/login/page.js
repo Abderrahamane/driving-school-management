@@ -1,3 +1,5 @@
+'use client';
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogIn, Mail, Lock, Eye, EyeOff, Car } from 'lucide-react';

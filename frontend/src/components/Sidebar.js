@@ -1,3 +1,5 @@
+'use client';
+
 import { Home, Users, UserCheck, Car, Calendar, DollarSign, FileText, Settings } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';

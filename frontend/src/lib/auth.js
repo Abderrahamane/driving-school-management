@@ -1,25 +1,33 @@
 export const setAuth = (token, user) => {
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(user));
+    if (typeof window !== 'undefined') {
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+    }
 };
 
 export const getAuth = () => {
     if (typeof window === 'undefined') return null;
 
-    const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
+    try {
+        const token = localStorage.getItem('token');
+        const user = localStorage.getItem('user');
 
-    if (!token || !user) return null;
+        if (!token || !user) return null;
 
-    return {
-        token,
-        user: JSON.parse(user),
-    };
+        return {
+            token,
+            user: JSON.parse(user),
+        };
+    } catch (error) {
+        return null;
+    }
 };
 
 export const clearAuth = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+    }
 };
 
 export const isAuthenticated = () => {
