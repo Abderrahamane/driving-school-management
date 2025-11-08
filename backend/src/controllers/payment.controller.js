@@ -1,8 +1,9 @@
+// backend/src/controllers/payment.controller.js
 import Payment from "../models/payment.model.js";
 import Student from "../models/student.model.js";
 import { asyncHandler, AppError } from "../middleware/error.middleware.js";
 
-// @desc    Get all payments with pagination and filtering
+// @desc    Get all payments
 // @route   GET /api/payments
 // @access  Private
 export const getPayments = asyncHandler(async (req, res, next) => {
@@ -12,43 +13,17 @@ export const getPayments = asyncHandler(async (req, res, next) => {
 
     let query = {};
 
-    // Filter by status
     if (req.query.status) {
         query.status = req.query.status;
     }
 
-    // Filter by payment method
-    if (req.query.method) {
-        query.method = req.query.method;
-    }
-
-    // Filter by student
     if (req.query.studentId) {
         query.studentId = req.query.studentId;
     }
 
-    // Filter by date range
-    if (req.query.startDate || req.query.endDate) {
-        query.date = {};
-        if (req.query.startDate) {
-            query.date.$gte = new Date(req.query.startDate);
-        }
-        if (req.query.endDate) {
-            query.date.$lte = new Date(req.query.endDate);
-        }
-    }
-
-    // Filter by amount range
-    if (req.query.minAmount) {
-        query.amount = { ...query.amount, $gte: parseFloat(req.query.minAmount) };
-    }
-    if (req.query.maxAmount) {
-        query.amount = { ...query.amount, $lte: parseFloat(req.query.maxAmount) };
-    }
-
     const payments = await Payment.find(query)
         .populate('studentId', 'name email phone')
-        .sort(req.query.sortBy || '-date')
+        .sort('-date')
         .skip(skip)
         .limit(limit);
 
@@ -72,7 +47,7 @@ export const getPayments = asyncHandler(async (req, res, next) => {
 // @access  Private
 export const getPayment = asyncHandler(async (req, res, next) => {
     const payment = await Payment.findById(req.params.id)
-        .populate('studentId', 'name email phone licenseType');
+        .populate('studentId', 'name email phone');
 
     if (!payment) {
         return next(new AppError('Payment not found', 404));
@@ -84,30 +59,19 @@ export const getPayment = asyncHandler(async (req, res, next) => {
     });
 });
 
-// @desc    Record new payment
+// @desc    Create payment
 // @route   POST /api/payments
 // @access  Private
 export const addPayment = asyncHandler(async (req, res, next) => {
-    const { studentId, amount, method } = req.body;
+    const student = await Student.findById(req.body.studentId);
 
-    // Verify student exists
-    const student = await Student.findById(studentId);
     if (!student) {
         return next(new AppError('Student not found', 404));
     }
 
-    // Create payment
-    const payment = await Payment.create({
-        studentId,
-        amount,
-        method,
-        status: req.body.status || 'paid',
-        description: req.body.description,
-        receiptNumber: req.body.receiptNumber || `RCP-${Date.now()}`
-    });
+    const payment = await Payment.create(req.body);
 
-    // Populate before returning
-    await payment.populate('studentId', 'name email');
+    await payment.populate('studentId', 'name email phone');
 
     res.status(201).json({
         success: true,
@@ -130,7 +94,7 @@ export const updatePayment = asyncHandler(async (req, res, next) => {
         req.params.id,
         req.body,
         { new: true, runValidators: true }
-    ).populate('studentId', 'name email');
+    ).populate('studentId', 'name email phone');
 
     res.status(200).json({
         success: true,
@@ -162,26 +126,17 @@ export const deletePayment = asyncHandler(async (req, res, next) => {
 // @route   GET /api/payments/stats
 // @access  Private
 export const getPaymentStats = asyncHandler(async (req, res, next) => {
-    // Total payments
-    const total = await Payment.countDocuments();
     const totalPaid = await Payment.countDocuments({ status: 'paid' });
     const totalPending = await Payment.countDocuments({ status: 'pending' });
 
-    // Total revenue
-    const revenueResult = await Payment.aggregate([
-        { $match: { status: 'paid' } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]);
-    const totalRevenue = revenueResult.length > 0 ? revenueResult[0].total : 0;
+    // Calculate revenue
+    const paidPayments = await Payment.find({ status: 'paid' });
+    const totalRevenue = paidPayments.reduce((sum, p) => sum + p.amount, 0);
 
-    // Pending amount
-    const pendingResult = await Payment.aggregate([
-        { $match: { status: 'pending' } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]);
-    const pendingAmount = pendingResult.length > 0 ? pendingResult[0].total : 0;
+    const pendingPayments = await Payment.find({ status: 'pending' });
+    const pendingAmount = pendingPayments.reduce((sum, p) => sum + p.amount, 0);
 
-    // Revenue by method
+    // Group by method
     const byMethod = await Payment.aggregate([
         { $match: { status: 'paid' } },
         {
@@ -193,45 +148,19 @@ export const getPaymentStats = asyncHandler(async (req, res, next) => {
         }
     ]);
 
-    // Monthly revenue (last 6 months)
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-
-    const monthlyRevenue = await Payment.aggregate([
-        {
-            $match: {
-                status: 'paid',
-                date: { $gte: sixMonthsAgo }
-            }
-        },
-        {
-            $group: {
-                _id: {
-                    year: { $year: '$date' },
-                    month: { $month: '$date' }
-                },
-                revenue: { $sum: '$amount' },
-                count: { $sum: 1 }
-            }
-        },
-        { $sort: { '_id.year': 1, '_id.month': 1 } }
-    ]);
-
     res.status(200).json({
         success: true,
         data: {
-            total,
             totalPaid,
             totalPending,
             totalRevenue,
             pendingAmount,
-            byMethod,
-            monthlyRevenue
+            byMethod
         }
     });
 });
 
-// @desc    Get student payment history
+// @desc    Get student payments
 // @route   GET /api/payments/student/:studentId
 // @access  Private
 export const getStudentPayments = asyncHandler(async (req, res, next) => {
@@ -244,49 +173,21 @@ export const getStudentPayments = asyncHandler(async (req, res, next) => {
     const payments = await Payment.find({ studentId: req.params.studentId })
         .sort('-date');
 
-    // Calculate totals
-    const totalPaid = await Payment.aggregate([
-        {
-            $match: {
-                studentId: student._id,
-                status: 'paid'
-            }
-        },
-        {
-            $group: {
-                _id: null,
-                total: { $sum: '$amount' }
-            }
-        }
-    ]);
+    const totalPaid = payments
+        .filter(p => p.status === 'paid')
+        .reduce((sum, p) => sum + p.amount, 0);
 
-    const totalPending = await Payment.aggregate([
-        {
-            $match: {
-                studentId: student._id,
-                status: 'pending'
-            }
-        },
-        {
-            $group: {
-                _id: null,
-                total: { $sum: '$amount' }
-            }
-        }
-    ]);
+    const totalPending = payments
+        .filter(p => p.status === 'pending')
+        .reduce((sum, p) => sum + p.amount, 0);
 
     res.status(200).json({
         success: true,
         data: {
-            student: {
-                id: student._id,
-                name: student.name,
-                email: student.email
-            },
             payments,
             summary: {
-                totalPaid: totalPaid.length > 0 ? totalPaid[0].total : 0,
-                totalPending: totalPending.length > 0 ? totalPending[0].total : 0,
+                totalPaid,
+                totalPending,
                 paymentCount: payments.length
             }
         }
@@ -297,20 +198,14 @@ export const getStudentPayments = asyncHandler(async (req, res, next) => {
 // @route   GET /api/payments/pending
 // @access  Private
 export const getPendingPayments = asyncHandler(async (req, res, next) => {
-    const pendingPayments = await Payment.find({ status: 'pending' })
+    const payments = await Payment.find({ status: 'pending' })
         .populate('studentId', 'name email phone')
         .sort('date');
 
-    const totalPending = await Payment.aggregate([
-        { $match: { status: 'pending' } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]);
-
     res.status(200).json({
         success: true,
-        count: pendingPayments.length,
-        totalAmount: totalPending.length > 0 ? totalPending[0].total : 0,
-        data: pendingPayments
+        count: payments.length,
+        data: payments
     });
 });
 
@@ -324,13 +219,11 @@ export const markAsPaid = asyncHandler(async (req, res, next) => {
         return next(new AppError('Payment not found', 404));
     }
 
-    if (payment.status === 'paid') {
-        return next(new AppError('Payment is already marked as paid', 400));
-    }
-
     payment.status = 'paid';
     payment.paidDate = new Date();
     await payment.save();
+
+    await payment.populate('studentId', 'name email phone');
 
     res.status(200).json({
         success: true,
