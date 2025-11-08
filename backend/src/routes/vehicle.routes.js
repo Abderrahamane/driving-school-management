@@ -1,3 +1,4 @@
+// backend/src/routes/vehicle.routes.js
 import express from "express";
 import {
     getVehicles,
@@ -8,21 +9,43 @@ import {
     getVehicleAvailability,
     getVehicleMaintenanceHistory,
     addMaintenanceRecord,
-    getVehicleStats
+    updateMaintenanceRecord,
+    deleteMaintenanceRecord,
+    getVehicleStats,
+    updateMileage
 } from "../controllers/vehicle.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
 import { validateVehicle } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
+// Stats route (must come first)
 router.get("/stats", protect, getVehicleStats);
-router.get("/", protect, getVehicles);
-router.get("/:id", protect, getVehicle);
+
+// Main CRUD routes
+router.route("/")
+    .get(protect, getVehicles)
+    .post(protect, validateVehicle, addVehicle);
+
+// Specific vehicle routes
+router.route("/:id")
+    .get(protect, getVehicle)
+    .put(protect, validateVehicle, updateVehicle)
+    .delete(protect, deleteVehicle);
+
+// Availability routes
 router.get("/:id/availability", protect, getVehicleAvailability);
-router.get("/:id/maintenance", protect, getVehicleMaintenanceHistory);
-router.post("/:id/maintenance", protect, addMaintenanceRecord);
-router.post("/", protect, validateVehicle, addVehicle);
-router.put("/:id", protect, validateVehicle, updateVehicle);
-router.delete("/:id", protect, deleteVehicle);
+
+// Maintenance routes
+router.route("/:id/maintenance")
+    .get(protect, getVehicleMaintenanceHistory)
+    .post(protect, addMaintenanceRecord);
+
+router.route("/:id/maintenance/:maintenanceId")
+    .put(protect, updateMaintenanceRecord)
+    .delete(protect, deleteMaintenanceRecord);
+
+// Mileage update
+router.patch("/:id/mileage", protect, updateMileage);
 
 export default router;

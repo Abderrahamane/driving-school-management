@@ -71,6 +71,8 @@ export const vehiclesAPI = {
     getAvailability: (id, date) => api.get(`/vehicles/${id}/availability`, { params: { date } }),
     getMaintenance: (id) => api.get(`/vehicles/${id}/maintenance`),
     addMaintenance: (id, data) => api.post(`/vehicles/${id}/maintenance`, data),
+    updateMaintenance: (id, maintenanceId, data) => api.put(`/vehicles/${id}/maintenance/${maintenanceId}`, data),
+    deleteMaintenance: (id, maintenanceId) => api.delete(`/vehicles/${id}/maintenance/${maintenanceId}`),
 };
 
 export const lessonsAPI = {
