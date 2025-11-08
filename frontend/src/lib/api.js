@@ -58,6 +58,7 @@ export const instructorsAPI = {
     update: (id, data) => api.put(`/instructors/${id}`, data),
     delete: (id) => api.delete(`/instructors/${id}`),
     getSchedule: (id) => api.get(`/instructors/${id}/schedule`),
+    getStats: () => api.get('/instructors/stats'), // Add this line
 };
 
 export const vehiclesAPI = {
