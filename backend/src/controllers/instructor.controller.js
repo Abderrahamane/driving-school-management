@@ -1,3 +1,4 @@
+// backend/src/controllers/instructor.controller.js
 import Instructor from "../models/instructor.model.js";
 import Lesson from "../models/lesson.model.js";
 import { asyncHandler, AppError } from "../middleware/error.middleware.js";
@@ -12,6 +13,7 @@ export const getInstructors = asyncHandler(async (req, res, next) => {
 
     let query = {};
 
+    // Search filter
     if (req.query.search) {
         query.$or = [
             { name: { $regex: req.query.search, $options: 'i' } },
@@ -19,6 +21,12 @@ export const getInstructors = asyncHandler(async (req, res, next) => {
         ];
     }
 
+    // Status filter
+    if (req.query.status) {
+        query.status = req.query.status;
+    }
+
+    // Experience filter
     if (req.query.minExperience) {
         query.experienceYears = { $gte: parseInt(req.query.minExperience) };
     }
@@ -29,18 +37,44 @@ export const getInstructors = asyncHandler(async (req, res, next) => {
         .skip(skip)
         .limit(limit);
 
+    // Get lesson statistics for each instructor
+    const instructorsWithStats = await Promise.all(
+        instructors.map(async (instructor) => {
+            const lessons = await Lesson.find({ instructorId: instructor._id });
+            const completedLessons = lessons.filter(l => l.status === 'completed');
+
+            // Calculate average rating
+            const ratingsArray = completedLessons
+                .filter(l => l.rating)
+                .map(l => l.rating);
+            const avgRating = ratingsArray.length > 0
+                ? ratingsArray.reduce((a, b) => a + b, 0) / ratingsArray.length
+                : 0;
+
+            return {
+                ...instructor.toJSON(),
+                stats: {
+                    totalLessons: lessons.length,
+                    completedLessons: completedLessons.length,
+                    avgRating: avgRating,
+                    totalReviews: ratingsArray.length
+                }
+            };
+        })
+    );
+
     const total = await Instructor.countDocuments(query);
 
     res.status(200).json({
         success: true,
-        count: instructors.length,
+        count: instructorsWithStats.length,
         pagination: {
             page,
             limit,
             total,
             pages: Math.ceil(total / limit)
         },
-        data: instructors
+        data: instructorsWithStats
     });
 });
 
@@ -55,9 +89,29 @@ export const getInstructor = asyncHandler(async (req, res, next) => {
         return next(new AppError('Instructor not found', 404));
     }
 
+    // Get instructor statistics
+    const lessons = await Lesson.find({ instructorId: instructor._id });
+    const completedLessons = lessons.filter(l => l.status === 'completed');
+    const ratingsArray = completedLessons
+        .filter(l => l.rating)
+        .map(l => l.rating);
+    const avgRating = ratingsArray.length > 0
+        ? ratingsArray.reduce((a, b) => a + b, 0) / ratingsArray.length
+        : 0;
+
+    const instructorWithStats = {
+        ...instructor.toJSON(),
+        stats: {
+            totalLessons: lessons.length,
+            completedLessons: completedLessons.length,
+            avgRating: avgRating,
+            totalReviews: ratingsArray.length
+        }
+    };
+
     res.status(200).json({
         success: true,
-        data: instructor
+        data: instructorWithStats
     });
 });
 
@@ -160,5 +214,36 @@ export const getInstructorSchedule = asyncHandler(async (req, res, next) => {
     res.status(200).json({
         success: true,
         data: lessons
+    });
+});
+
+// @desc    Get instructor statistics
+// @route   GET /api/instructors/stats
+// @access  Private
+export const getInstructorStats = asyncHandler(async (req, res, next) => {
+    const total = await Instructor.countDocuments();
+    const active = await Instructor.countDocuments({ status: 'active' });
+    const inactive = await Instructor.countDocuments({ status: 'inactive' });
+    const onLeave = await Instructor.countDocuments({ status: 'on-leave' });
+
+    // Calculate average experience
+    const instructors = await Instructor.find();
+    const avgExperience = instructors.length > 0
+        ? Math.round(instructors.reduce((sum, i) => sum + i.experienceYears, 0) / instructors.length)
+        : 0;
+
+    // Get total lessons taught by all instructors
+    const totalLessons = await Lesson.countDocuments();
+
+    res.status(200).json({
+        success: true,
+        data: {
+            total,
+            active,
+            inactive,
+            onLeave,
+            avgExperience,
+            totalLessons
+        }
     });
 });

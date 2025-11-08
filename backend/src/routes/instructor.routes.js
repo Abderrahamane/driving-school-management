@@ -1,3 +1,4 @@
+// backend/src/routes/instructor.routes.js
 import express from "express";
 import {
     getInstructors,
@@ -5,18 +6,26 @@ import {
     addInstructor,
     updateInstructor,
     deleteInstructor,
-    getInstructorSchedule
+    getInstructorSchedule,
+    getInstructorStats
 } from "../controllers/instructor.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
 import { validateInstructor } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-router.get("/", protect, getInstructors);
-router.get("/:id", protect, getInstructor);
+// IMPORTANT: Stats route MUST come before :id routes to avoid route conflicts
+router.get("/stats", protect, getInstructorStats);
 router.get("/:id/schedule", protect, getInstructorSchedule);
-router.post("/", protect, validateInstructor, addInstructor);
-router.put("/:id", protect, validateInstructor, updateInstructor);
-router.delete("/:id", protect, deleteInstructor);
+
+// Main CRUD routes
+router.route("/")
+    .get(protect, getInstructors)
+    .post(protect, validateInstructor, addInstructor);
+
+router.route("/:id")
+    .get(protect, getInstructor)
+    .put(protect, validateInstructor, updateInstructor)
+    .delete(protect, deleteInstructor);
 
 export default router;
