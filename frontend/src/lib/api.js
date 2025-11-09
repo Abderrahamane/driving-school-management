@@ -76,14 +76,41 @@ export const vehiclesAPI = {
 };
 
 export const lessonsAPI = {
-    getAll: (params) => api.get('/lessons', { params }),
+    // Get all lessons with filters
+    getAll: (params = {}) => api.get('/lessons', { params }),
+
+    // Get single lesson
     getOne: (id) => api.get(`/lessons/${id}`),
+
+    // Create new lesson
     create: (data) => api.post('/lessons', data),
+
+    // Update lesson
     update: (id, data) => api.put(`/lessons/${id}`, data),
+
+    // Delete/Cancel lesson
     delete: (id) => api.delete(`/lessons/${id}`),
-    complete: (id, data) => api.put(`/lessons/${id}/complete`, data),
-    checkAvailability: (data) => api.post('/lessons/check-availability', data),
+
+    // Get lesson statistics
     getStats: () => api.get('/lessons/stats'),
+
+    // Check availability for scheduling
+    checkAvailability: (data) => api.post('/lessons/check-availability', data),
+
+    // Complete a lesson
+    complete: (id, data) => api.put(`/lessons/${id}/complete`, data),
+
+    // Get calendar lessons (all lessons for a month)
+    getCalendarLessons: (year, month) =>
+        api.get('/lessons/calendar', { params: { year, month } }),
+
+    // Bulk schedule multiple lessons
+    bulkSchedule: (lessons) =>
+        api.post('/lessons/bulk-schedule', { lessons }),
+
+    // Get upcoming lessons
+    getUpcoming: (limit = 10) =>
+        api.get('/lessons/upcoming', { params: { limit } }),
 };
 
 export const paymentsAPI = {
