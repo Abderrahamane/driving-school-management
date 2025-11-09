@@ -177,6 +177,10 @@ export const deleteLesson = asyncHandler(async (req, res, next) => {
 // @desc    Get lessons with advanced filtering
 // @route   GET /api/lessons
 // @access  Private
+
+// @desc    Get lessons with advanced filtering
+// @route   GET /api/lessons
+// @access  Private
 export const getLessons = asyncHandler(async (req, res, next) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
@@ -220,38 +224,67 @@ export const getLessons = asyncHandler(async (req, res, next) => {
         }
     }
 
-    // Search functionality
+    // Search functionality - simpler approach without filtering after population
     if (req.query.search) {
-        const searchRegex = { $regex: req.query.search, $options: 'i' };
+        // If there's a search term, we need to search across related collections
+        const searchRegex = new RegExp(req.query.search, 'i');
 
-        // First, get the lessons
-        const lessons = await Lesson.find(query)
-            .populate('studentId', 'name email phone')
-            .populate('instructorId', 'name email')
-            .populate('vehicleId', 'plateNumber model');
+        // Find matching students, instructors, and vehicles
+        const [students, instructors, vehicles] = await Promise.all([
+            Student.find({
+                $or: [
+                    { name: searchRegex },
+                    { email: searchRegex },
+                    { phone: searchRegex }
+                ]
+            }).select('_id'),
+            Instructor.find({
+                $or: [
+                    { name: searchRegex },
+                    { email: searchRegex }
+                ]
+            }).select('_id'),
+            Vehicle.find({
+                $or: [
+                    { plateNumber: searchRegex },
+                    { model: searchRegex }
+                ]
+            }).select('_id')
+        ]);
 
-        // Then filter by search term
-        const filteredLessons = lessons.filter(lesson =>
-            lesson.studentId?.name?.toLowerCase().includes(req.query.search.toLowerCase()) ||
-            lesson.instructorId?.name?.toLowerCase().includes(req.query.search.toLowerCase()) ||
-            lesson.vehicleId?.plateNumber?.toLowerCase().includes(req.query.search.toLowerCase())
-        );
+        const studentIds = students.map(s => s._id);
+        const instructorIds = instructors.map(i => i._id);
+        const vehicleIds = vehicles.map(v => v._id);
 
-        const paginatedLessons = filteredLessons.slice(skip, skip + limit);
-
-        return res.status(200).json({
-            success: true,
-            count: paginatedLessons.length,
-            pagination: {
-                page,
-                limit,
-                total: filteredLessons.length,
-                pages: Math.ceil(filteredLessons.length / limit)
-            },
-            data: paginatedLessons
-        });
+        // Add search criteria to query
+        if (studentIds.length > 0 || instructorIds.length > 0 || vehicleIds.length > 0) {
+            query.$or = [];
+            if (studentIds.length > 0) {
+                query.$or.push({ studentId: { $in: studentIds } });
+            }
+            if (instructorIds.length > 0) {
+                query.$or.push({ instructorId: { $in: instructorIds } });
+            }
+            if (vehicleIds.length > 0) {
+                query.$or.push({ vehicleId: { $in: vehicleIds } });
+            }
+        } else {
+            // No matches found, return empty result
+            return res.status(200).json({
+                success: true,
+                count: 0,
+                pagination: {
+                    page,
+                    limit,
+                    total: 0,
+                    pages: 0
+                },
+                data: []
+            });
+        }
     }
 
+    // Execute query with population
     const lessons = await Lesson.find(query)
         .populate('studentId', 'name email phone licenseType')
         .populate('instructorId', 'name email experienceYears phone')

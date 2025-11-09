@@ -35,22 +35,44 @@ export default function LessonsPage() {
     const [selectedLesson, setSelectedLesson] = useState(null);
     const [toast, setToast] = useState(null);
 
-    const { data, loading, refetch } = useFetch(
+    const { data, loading, refetch, error } = useFetch(
         () => lessonsAPI.getAll({
             page,
-            search: searchTerm,
-            status: statusFilter,
-            instructorId: instructorFilter,
-            studentId: studentFilter,
-            startDate: dateFilter ? dateFilter : undefined,
-            endDate: dateFilter ? dateFilter : undefined,
+            limit: 10,
+            search: searchTerm || undefined,
+            status: statusFilter || undefined,
+            lessonType: typeFilter || undefined,
+            instructorId: instructorFilter || undefined,
+            studentId: studentFilter || undefined,
+            startDate: dateFilter || undefined,
+            endDate: dateFilter || undefined,
         }),
-        [page, searchTerm, statusFilter, instructorFilter, studentFilter, dateFilter]
+        [page, searchTerm, statusFilter, typeFilter, instructorFilter, studentFilter, dateFilter]
     );
+
+    // Debug logging
+    if (error) {
+        console.error('Lessons fetch error:', error);
+    }
+    if (data) {
+        console.log('Lessons data:', data);
+    }
 
     const { data: statsData } = useFetch(() => lessonsAPI.getStats());
     const { data: studentsData } = useFetch(() => studentsAPI.getAll({ limit: 100 }));
     const { data: instructorsData } = useFetch(() => instructorsAPI.getAll({ limit: 100 }));
+
+    // Safe access to stats data with defaults
+    const stats = {
+        total: statsData?.data?.total || 0,
+        scheduled: statsData?.data?.scheduled || 0,
+        completed: statsData?.data?.completed || 0,
+        cancelled: statsData?.data?.cancelled || 0,
+        noShow: statsData?.data?.noShow || 0,
+        inProgress: statsData?.data?.inProgress || 0,
+        upcoming: statsData?.data?.upcoming || 0,
+        todayLessons: statsData?.data?.todayLessons || 0,
+    };
 
     const handleOpenFormModal = (lesson = null) => {
         setEditingLesson(lesson);
@@ -163,7 +185,7 @@ export default function LessonsPage() {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm text-gray-600 mb-1">Total Lessons</p>
-                                <h3 className="text-3xl font-bold text-gray-800">{statsData?.data?.total || 0}</h3>
+                                <h3 className="text-3xl font-bold text-gray-800">{stats.total}</h3>
                             </div>
                             <div className="p-3 rounded-full bg-blue-100">
                                 <CalendarIcon className="text-blue-600" size={24} />
@@ -175,7 +197,7 @@ export default function LessonsPage() {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm text-gray-600 mb-1">Scheduled</p>
-                                <h3 className="text-3xl font-bold text-gray-800">{statsData?.data?.scheduled || 0}</h3>
+                                <h3 className="text-3xl font-bold text-gray-800">{stats.scheduled}</h3>
                             </div>
                             <div className="p-3 rounded-full bg-yellow-100">
                                 <Clock className="text-yellow-600" size={24} />
@@ -187,7 +209,7 @@ export default function LessonsPage() {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm text-gray-600 mb-1">Completed</p>
-                                <h3 className="text-3xl font-bold text-gray-800">{statsData?.data?.completed || 0}</h3>
+                                <h3 className="text-3xl font-bold text-gray-800">{stats.completed}</h3>
                             </div>
                             <div className="p-3 rounded-full bg-green-100">
                                 <CheckCircle className="text-green-600" size={24} />
@@ -199,7 +221,7 @@ export default function LessonsPage() {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm text-gray-600 mb-1">Upcoming (7d)</p>
-                                <h3 className="text-3xl font-bold text-gray-800">{statsData?.data?.upcoming || 0}</h3>
+                                <h3 className="text-3xl font-bold text-gray-800">{stats.upcoming}</h3>
                             </div>
                             <div className="p-3 rounded-full bg-purple-100">
                                 <TrendingUp className="text-purple-600" size={24} />
@@ -211,7 +233,7 @@ export default function LessonsPage() {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm text-gray-600 mb-1">Cancelled</p>
-                                <h3 className="text-3xl font-bold text-gray-800">{statsData?.data?.cancelled || 0}</h3>
+                                <h3 className="text-3xl font-bold text-gray-800">{stats.cancelled}</h3>
                             </div>
                             <div className="p-3 rounded-full bg-red-100">
                                 <XCircle className="text-red-600" size={24} />
@@ -250,6 +272,9 @@ export default function LessonsPage() {
 
                         <div className="text-sm text-gray-600">
                             Showing {data?.count || 0} of {data?.pagination?.total || 0} lessons
+                            {/* Debug info */}
+                            {loading && <span className="ml-2 text-blue-600">(Loading...)</span>}
+                            {error && <span className="ml-2 text-red-600">(Error: {error})</span>}
                         </div>
                     </div>
                 </div>
@@ -320,6 +345,20 @@ export default function LessonsPage() {
                         <div className="flex justify-center py-12">
                             <Loader size="lg" />
                         </div>
+                    ) : error ? (
+                        <div className="bg-white rounded-2xl shadow-lg p-12">
+                            <div className="flex flex-col items-center justify-center text-red-500">
+                                <AlertCircle size={48} className="mb-4" />
+                                <p className="text-lg font-medium">Error Loading Lessons</p>
+                                <p className="text-sm text-gray-600 mt-2">{error}</p>
+                                <button
+                                    onClick={() => refetch()}
+                                    className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                >
+                                    Retry
+                                </button>
+                            </div>
+                        </div>
                     ) : (
                         <>
                             <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
@@ -337,99 +376,111 @@ export default function LessonsPage() {
                                         </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-100">
-                                        {data?.data?.map((lesson) => (
-                                            <tr key={lesson._id} className="hover:bg-gray-50 transition-all">
-                                                <td className="px-6 py-4">
-                                                    <div className="flex items-center space-x-3">
-                                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold">
-                                                            {lesson.studentId?.name?.charAt(0).toUpperCase()}
+                                        {data?.data && data.data.length > 0 ? (
+                                            data.data.map((lesson) => (
+                                                <tr key={lesson._id} className="hover:bg-gray-50 transition-all">
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex items-center space-x-3">
+                                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold">
+                                                                {lesson.studentId?.name?.charAt(0).toUpperCase() || '?'}
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-sm font-semibold text-gray-800">{lesson.studentId?.name || 'N/A'}</p>
+                                                                <p className="text-xs text-gray-500">{lesson.studentId?.phone || 'N/A'}</p>
+                                                            </div>
                                                         </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
                                                         <div>
-                                                            <p className="text-sm font-semibold text-gray-800">{lesson.studentId?.name}</p>
-                                                            <p className="text-xs text-gray-500">{lesson.studentId?.phone}</p>
+                                                            <p className="text-sm font-medium text-gray-800">{lesson.instructorId?.name || 'N/A'}</p>
+                                                            <p className="text-xs text-gray-500">{lesson.instructorId?.experienceYears || 0}y exp</p>
                                                         </div>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div>
-                                                        <p className="text-sm font-medium text-gray-800">{lesson.instructorId?.name}</p>
-                                                        <p className="text-xs text-gray-500">{lesson.instructorId?.experienceYears}y exp</p>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex items-center gap-2">
-                                                        <Car size={16} className="text-gray-400" />
-                                                        <span className="text-sm text-gray-600">{lesson.vehicleId?.plateNumber}</span>
-                                                    </div>
-                                                    <p className="text-xs text-gray-500">{lesson.vehicleId?.model}</p>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex items-center gap-2">
-                                                        <CalendarIcon size={16} className="text-gray-400" />
-                                                        <span className="text-sm text-gray-600">
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex items-center gap-2">
+                                                            <Car size={16} className="text-gray-400" />
+                                                            <span className="text-sm text-gray-600">{lesson.vehicleId?.plateNumber || 'N/A'}</span>
+                                                        </div>
+                                                        <p className="text-xs text-gray-500">{lesson.vehicleId?.model || 'N/A'}</p>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex items-center gap-2">
+                                                            <CalendarIcon size={16} className="text-gray-400" />
+                                                            <span className="text-sm text-gray-600">
                                                                 {new Date(lesson.date).toLocaleDateString()}
                                                             </span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                        <Clock size={16} className="text-gray-400" />
-                                                        <span className="text-sm text-gray-600">
+                                                        </div>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <Clock size={16} className="text-gray-400" />
+                                                            <span className="text-sm text-gray-600">
                                                                 {lesson.time} ({lesson.duration}min)
                                                             </span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4">
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
                                                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${typeColors[lesson.lessonType]}`}>
                                                             {lesson.lessonType.replace('-', ' ')}
                                                         </span>
-                                                </td>
-                                                <td className="px-6 py-4">
+                                                    </td>
+                                                    <td className="px-6 py-4">
                                                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${statusColors[lesson.status]}`}>
                                                             {lesson.status}
                                                         </span>
-                                                </td>
-                                                <td className="px-6 py-4 text-right">
-                                                    <div className="flex justify-end gap-2">
-                                                        <button
-                                                            onClick={() => handleViewDetails(lesson)}
-                                                            className="p-2 rounded-lg hover:bg-blue-50 text-blue-600 transition-all"
-                                                            title="View Details"
-                                                        >
-                                                            <Eye size={18} />
-                                                        </button>
-                                                        {lesson.status === 'scheduled' && (
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <div className="flex justify-end gap-2">
                                                             <button
-                                                                onClick={() => handleCompleteLesson(lesson._id)}
-                                                                className="p-2 rounded-lg hover:bg-green-50 text-green-600 transition-all"
-                                                                title="Mark as completed"
+                                                                onClick={() => handleViewDetails(lesson)}
+                                                                className="p-2 rounded-lg hover:bg-blue-50 text-blue-600 transition-all"
+                                                                title="View Details"
                                                             >
-                                                                <CheckCircle size={18} />
+                                                                <Eye size={18} />
                                                             </button>
-                                                        )}
-                                                        <button
-                                                            onClick={() => handleOpenFormModal(lesson)}
-                                                            className="p-2 rounded-lg hover:bg-yellow-50 text-yellow-600 transition-all"
-                                                            title="Edit"
-                                                        >
-                                                            <Edit size={18} />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDelete(lesson._id)}
-                                                            className="p-2 rounded-lg hover:bg-red-50 text-red-600 transition-all"
-                                                            title="Cancel"
-                                                        >
-                                                            <XCircle size={18} />
-                                                        </button>
+                                                            {lesson.status === 'scheduled' && (
+                                                                <button
+                                                                    onClick={() => handleCompleteLesson(lesson._id)}
+                                                                    className="p-2 rounded-lg hover:bg-green-50 text-green-600 transition-all"
+                                                                    title="Mark as completed"
+                                                                >
+                                                                    <CheckCircle size={18} />
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                onClick={() => handleOpenFormModal(lesson)}
+                                                                className="p-2 rounded-lg hover:bg-yellow-50 text-yellow-600 transition-all"
+                                                                title="Edit"
+                                                            >
+                                                                <Edit size={18} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDelete(lesson._id)}
+                                                                className="p-2 rounded-lg hover:bg-red-50 text-red-600 transition-all"
+                                                                title="Cancel"
+                                                            >
+                                                                <XCircle size={18} />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan="7" className="px-6 py-12 text-center">
+                                                    <div className="flex flex-col items-center justify-center text-gray-500">
+                                                        <CalendarIcon size={48} className="mb-4 opacity-50" />
+                                                        <p className="text-lg font-medium">No lessons found</p>
+                                                        <p className="text-sm">Click "Schedule Lesson" to add your first lesson</p>
                                                     </div>
                                                 </td>
                                             </tr>
-                                        ))}
+                                        )}
                                         </tbody>
                                     </table>
                                 </div>
                             </div>
 
                             {/* Pagination */}
-                            {data?.pagination && (
+                            {data?.pagination && data.pagination.total > 0 && (
                                 <div className="mt-6 flex items-center justify-between">
                                     <p className="text-sm text-gray-600">
                                         Showing {((page - 1) * data.pagination.limit) + 1} to{' '}
