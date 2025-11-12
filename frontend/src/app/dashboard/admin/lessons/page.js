@@ -50,7 +50,7 @@ export default function LessonsPage() {
         [page, searchTerm, statusFilter, typeFilter, instructorFilter, studentFilter, dateFilter]
     );
 
-    // Debug logging
+    // Debug logging with better error handling
     if (error) {
         console.error('Lessons fetch error:', error);
     }
@@ -58,20 +58,25 @@ export default function LessonsPage() {
         console.log('Lessons data:', data);
     }
 
-    const { data: statsData } = useFetch(() => lessonsAPI.getStats());
+    const { data: statsData, error: statsError } = useFetch(() => lessonsAPI.getStats());
     const { data: studentsData } = useFetch(() => studentsAPI.getAll({ limit: 100 }));
     const { data: instructorsData } = useFetch(() => instructorsAPI.getAll({ limit: 100 }));
 
-    // Safe access to stats data with defaults
+    // Debug stats errors
+    if (statsError) {
+        console.error('Stats fetch error:', statsError);
+    }
+
+    // Safe access to stats data with proper null checks and defaults
     const stats = {
-        total: statsData?.data?.total || 0,
-        scheduled: statsData?.data?.scheduled || 0,
-        completed: statsData?.data?.completed || 0,
-        cancelled: statsData?.data?.cancelled || 0,
-        noShow: statsData?.data?.noShow || 0,
-        inProgress: statsData?.data?.inProgress || 0,
-        upcoming: statsData?.data?.upcoming || 0,
-        todayLessons: statsData?.data?.todayLessons || 0,
+        total: statsData?.data?.total ?? 0,
+        scheduled: statsData?.data?.scheduled ?? 0,
+        completed: statsData?.data?.completed ?? 0,
+        cancelled: statsData?.data?.cancelled ?? 0,
+        noShow: statsData?.data?.noShow ?? 0,
+        inProgress: statsData?.data?.inProgress ?? 0,
+        upcoming: statsData?.data?.upcoming ?? 0,
+        todayLessons: statsData?.data?.todayLessons ?? 0,
     };
 
     const handleOpenFormModal = (lesson = null) => {
@@ -96,7 +101,7 @@ export default function LessonsPage() {
             setToast({ type: 'success', message: 'Lesson cancelled successfully!' });
             refetch();
         } catch (error) {
-            setToast({ type: 'error', message: error.response?.data?.error || 'Delete failed' });
+            setToast({ type: 'error', message: error.response?.data?.error || 'Failed to cancel lesson' });
         }
     };
 
@@ -271,10 +276,9 @@ export default function LessonsPage() {
                         </div>
 
                         <div className="text-sm text-gray-600">
-                            Showing {data?.count || 0} of {data?.pagination?.total || 0} lessons
-                            {/* Debug info */}
+                            Showing {data?.data?.length || 0} of {data?.pagination?.total || 0} lessons
                             {loading && <span className="ml-2 text-blue-600">(Loading...)</span>}
-                            {error && <span className="ml-2 text-red-600">(Error: {error})</span>}
+                            {error && <span className="ml-2 text-red-600">(Error loading data)</span>}
                         </div>
                     </div>
                 </div>
@@ -350,7 +354,9 @@ export default function LessonsPage() {
                             <div className="flex flex-col items-center justify-center text-red-500">
                                 <AlertCircle size={48} className="mb-4" />
                                 <p className="text-lg font-medium">Error Loading Lessons</p>
-                                <p className="text-sm text-gray-600 mt-2">{error}</p>
+                                <p className="text-sm text-gray-600 mt-2">
+                                    {typeof error === 'string' ? error : 'Unable to load lessons. Please try again.'}
+                                </p>
                                 <button
                                     onClick={() => refetch()}
                                     className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -376,7 +382,7 @@ export default function LessonsPage() {
                                         </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-100">
-                                        {data?.data && data.data.length > 0 ? (
+                                        {data?.data && Array.isArray(data.data) && data.data.length > 0 ? (
                                             data.data.map((lesson) => (
                                                 <tr key={lesson._id} className="hover:bg-gray-50 transition-all">
                                                     <td className="px-6 py-4">
@@ -483,8 +489,8 @@ export default function LessonsPage() {
                             {data?.pagination && data.pagination.total > 0 && (
                                 <div className="mt-6 flex items-center justify-between">
                                     <p className="text-sm text-gray-600">
-                                        Showing {((page - 1) * data.pagination.limit) + 1} to{' '}
-                                        {Math.min(page * data.pagination.limit, data.pagination.total)} of{' '}
+                                        Showing {((page - 1) * (data.pagination.limit || 10)) + 1} to{' '}
+                                        {Math.min(page * (data.pagination.limit || 10), data.pagination.total)} of{' '}
                                         {data.pagination.total} lessons
                                     </p>
                                     <div className="flex gap-2">
@@ -500,7 +506,7 @@ export default function LessonsPage() {
                                         </span>
                                         <button
                                             onClick={() => setPage(p => p + 1)}
-                                            disabled={page >= data.pagination.pages}
+                                            disabled={page >= (data.pagination.pages || 1)}
                                             className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             Next

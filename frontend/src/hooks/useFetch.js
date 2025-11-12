@@ -15,10 +15,33 @@ export const useFetch = (fetchFn, dependencies = []) => {
             console.log('Fetching data...'); // Debug log
             const response = await fetchFn();
             console.log('Response received:', response); // Debug log
-            setData(response.data);
+
+            // Ensure response has the expected structure
+            if (response && response.data) {
+                setData(response.data);
+            } else {
+                console.warn('Unexpected response structure:', response);
+                setData(null);
+            }
         } catch (err) {
             console.error('Fetch error:', err); // Debug log
-            const errorMessage = err.response?.data?.error || err.message || 'An error occurred';
+
+            // Better error message extraction
+            let errorMessage = 'An error occurred';
+
+            if (err.response) {
+                // Server responded with error
+                errorMessage = err.response.data?.error ||
+                              err.response.data?.message ||
+                              `Server error: ${err.response.status}`;
+            } else if (err.request) {
+                // Request made but no response
+                errorMessage = 'No response from server. Please check your connection.';
+            } else {
+                // Error setting up request
+                errorMessage = err.message || 'Request failed';
+            }
+
             setError(errorMessage);
             setData(null);
         } finally {
