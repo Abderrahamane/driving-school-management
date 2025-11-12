@@ -1,21 +1,15 @@
-import '../styles/globals.css';
-import Sidebar from '../components/Sidebar';
-import Navbar from '../components/Navbar';
+import '@/styles/globals.css';
 
 export const metadata = {
-    title: 'Driving School Admin',
-    description: 'Admin Dashboard for Driving School Management System',
+    title: 'Driving School Management System',
+    description: 'Complete driving school management solution',
 };
 
 export default function RootLayout({ children }) {
     return (
         <html lang="en">
-        <body className="flex bg-gray-100 min-h-screen">
-        <Sidebar />
-        <main className="flex-1 p-6">
-            <Navbar />
-            {children}
-        </main>
+        <body className="bg-gray-100">
+        {children}
         </body>
         </html>
     );

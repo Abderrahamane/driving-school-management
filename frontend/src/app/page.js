@@ -1,8 +1,25 @@
-export default function Dashboard() {
-    return (
-        <div>
-            <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
-            <p>Welcome to the Driving School Management Dashboard.</p>
-        </div>
-    );
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { getUserRole } from '@/lib/auth';
+import Loader from '@/components/Loader';
+
+export default function DashboardRedirect() {
+    const router = useRouter();
+
+    useEffect(() => {
+        const role = getUserRole();
+        if (role === 'admin' || role === 'super-admin') {
+            router.push('/dashboard/admin');
+        } else if (role === 'instructor') {
+            router.push('/dashboard/instructor');
+        } else if (role === 'student') {
+            router.push('/dashboard/student');
+        } else {
+            router.push('/login');
+        }
+    }, [router]);
+
+    return <Loader fullScreen />;
 }
