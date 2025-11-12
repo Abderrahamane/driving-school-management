@@ -1,8 +1,9 @@
 // frontend/src/components/settings/AppearanceSettings.js
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Palette, Sun, Moon, Monitor, Globe, Type, Layout, Sliders, Save } from 'lucide-react';
+import { settingsAPI } from '@/lib/api';
 
 export default function AppearanceSettings({ user, setToast, setHasUnsavedChanges }) {
     const [settings, setSettings] = useState({
@@ -15,21 +16,29 @@ export default function AppearanceSettings({ user, setToast, setHasUnsavedChange
         showAnimations: true,
         highContrast: false,
     });
-
-    const [originalSettings, setOriginalSettings] = useState({});
+    const [originalSettings, setOriginalSettings] = useState(settings);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('appearance_settings');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                setSettings(parsed);
-                setOriginalSettings(parsed);
-                applySettings(parsed);
-            } else {
-                setOriginalSettings(settings);
+        const loadAppearanceSettings = async () => {
+            try {
+                const response = await settingsAPI.getAppearanceSettings();
+                const data = response.data.data;
+                const next = { ...settings, ...data };
+                setSettings(next);
+                setOriginalSettings(next);
+                applySettings(next);
+            } catch (error) {
+                const message = error.response?.data?.error || 'Failed to load appearance settings';
+                setToast({ type: 'error', message });
+            } finally {
+                setLoading(false);
             }
-        }
+        };
+
+        loadAppearanceSettings();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
@@ -38,35 +47,47 @@ export default function AppearanceSettings({ user, setToast, setHasUnsavedChange
     }, [settings, originalSettings, setHasUnsavedChanges]);
 
     const applySettings = (newSettings) => {
-        // Apply theme
+        if (typeof document === 'undefined') return;
+
         if (newSettings.theme === 'dark') {
             document.documentElement.classList.add('dark');
         } else {
             document.documentElement.classList.remove('dark');
         }
 
-        // Apply font size
         const root = document.documentElement;
         const fontSizes = { small: '14px', medium: '16px', large: '18px' };
         root.style.fontSize = fontSizes[newSettings.fontSize];
     };
 
     const handleChange = (key, value) => {
-        const newSettings = { ...settings, [key]: value };
-        setSettings(newSettings);
-        applySettings(newSettings);
+        const next = { ...settings, [key]: value };
+        setSettings(next);
+        if (['theme', 'fontSize'].includes(key)) {
+            applySettings(next);
+        }
     };
 
     const handleToggle = (key) => {
         handleChange(key, !settings[key]);
     };
 
-    const handleSave = () => {
-        if (typeof window !== 'undefined') {
-            localStorage.setItem('appearance_settings', JSON.stringify(settings));
-            setOriginalSettings(settings);
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            const { theme, fontSize, sidebarPosition, compactMode, colorScheme, showAnimations, highContrast } = settings;
+            const payload = { theme, fontSize, sidebarPosition, compactMode, colorScheme, showAnimations, highContrast };
+            const response = await settingsAPI.updateAppearanceSettings(payload);
+            const updated = { ...settings, ...response.data.data };
+            setSettings(updated);
+            setOriginalSettings(updated);
             setHasUnsavedChanges(false);
-            setToast({ type: 'success', message: 'Appearance settings saved successfully!' });
+            setToast({ type: 'success', message: response.data.message || 'Appearance settings saved successfully!' });
+        } catch (error) {
+            const message = error.response?.data?.error || 'Failed to save appearance settings';
+            setToast({ type: 'error', message });
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -98,6 +119,12 @@ export default function AppearanceSettings({ user, setToast, setHasUnsavedChange
                 <p className="text-gray-600">Customize how the application looks and feels</p>
             </div>
 
+            {loading ? (
+                <div className="flex items-center justify-center py-10">
+                    <Monitor className="text-blue-600 animate-pulse" size={40} />
+                </div>
+            ) : (
+            <>
             {/* Theme Selection */}
             <div className="bg-white rounded-xl p-6 border border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
@@ -165,15 +192,17 @@ export default function AppearanceSettings({ user, setToast, setHasUnsavedChange
                     <Globe size={20} className="text-blue-600" />
                     Language & Region
                 </h3>
+                <p className="text-sm text-gray-500 mb-4">Language preferences are coming soon.</p>
                 <div className="grid grid-cols-2 gap-4">
                     {languages.map((lang) => (
                         <button
                             key={lang.code}
-                            onClick={() => handleChange('language', lang.code)}
-                            className={`p-4 rounded-xl border-2 transition-all flex items-center gap-3 ${
+                            type="button"
+                            disabled
+                            className={`p-4 rounded-xl border-2 transition-all flex items-center gap-3 opacity-60 cursor-not-allowed ${
                                 settings.language === lang.code
-                                    ? 'border-blue-600 bg-blue-50'
-                                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                    ? 'border-blue-200 bg-blue-50'
+                                    : 'border-gray-200'
                             }`}
                         >
                             <span className="text-3xl">{lang.flag}</span>
@@ -288,12 +317,15 @@ export default function AppearanceSettings({ user, setToast, setHasUnsavedChange
             <div className="flex justify-end pt-4 border-t">
                 <button
                     onClick={handleSave}
-                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 font-medium transition-all shadow-lg"
+                    disabled={saving || loading}
+                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 font-medium transition-all shadow-lg disabled:opacity-60"
                 >
                     <Save size={18} />
-                    Save Appearance
+                    {saving ? 'Saving...' : 'Save Appearance'}
                 </button>
             </div>
+            </>
+            )}
         </div>
     );
 }

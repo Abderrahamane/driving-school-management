@@ -125,4 +125,25 @@ export const paymentsAPI = {
     markAsPaid: (id) => api.put(`/payments/${id}/mark-paid`),
 };
 
+export const settingsAPI = {
+    getSettings: () => api.get('/settings'),
+    updateProfile: (data) => api.put('/settings/profile', data),
+    getNotificationSettings: () => api.get('/settings/notifications'),
+    updateNotificationSettings: (data) => api.put('/settings/notifications', data),
+    getAppearanceSettings: () => api.get('/settings/appearance'),
+    updateAppearanceSettings: (data) => api.put('/settings/appearance', data),
+    getSecuritySettings: () => api.get('/settings/security'),
+    toggleTwoFactor: (enabled) => api.post('/settings/security/two-factor', { enabled }),
+    endSession: (sessionId) => api.delete(`/settings/security/sessions/${sessionId}`),
+    getBackupSettings: () => api.get('/settings/backups'),
+    updateBackupPreferences: (data) => api.put('/settings/backups/preferences', data),
+    createBackup: (payload = {}) => api.post('/settings/backups', payload),
+    restoreBackup: (backupId) => api.post(`/settings/backups/${backupId}/restore`),
+    downloadBackup: (backupId) => api.get(`/settings/backups/${backupId}/download`),
+    getSystemStatus: () => api.get('/settings/system'),
+    clearCache: () => api.post('/settings/system/clear-cache'),
+    optimizeDatabase: () => api.post('/settings/system/optimize-database'),
+    exportLogs: () => api.post('/settings/system/export-logs'),
+};
+
 export default api;

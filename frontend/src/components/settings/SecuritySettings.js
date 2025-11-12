@@ -1,13 +1,14 @@
 // frontend/src/components/settings/SecuritySettings.js
 'use client';
 
-import { useState } from 'react';
-import { authAPI } from '@/lib/api';
+import { useEffect, useState } from 'react';
+import { authAPI, settingsAPI } from '@/lib/api';
 import { Lock, Eye, EyeOff, Shield, Key, CheckCircle, AlertTriangle, Smartphone, Clock } from 'lucide-react';
 import Loader from '@/components/Loader';
 
 export default function SecuritySettings({ user, setToast, setHasUnsavedChanges }) {
-    const [loading, setLoading] = useState(false);
+    const [updatingPassword, setUpdatingPassword] = useState(false);
+    const [loadingSecurity, setLoadingSecurity] = useState(true);
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -18,14 +19,30 @@ export default function SecuritySettings({ user, setToast, setHasUnsavedChanges 
     });
     const [passwordStrength, setPasswordStrength] = useState(0);
     const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
-    const [sessions, setSessions] = useState([
-        { id: 1, device: 'Chrome on Windows', location: 'New York, USA', lastActive: '2 minutes ago', current: true },
-        { id: 2, device: 'Safari on iPhone', location: 'Los Angeles, USA', lastActive: '2 hours ago', current: false },
-    ]);
+    const [sessions, setSessions] = useState([]);
 
-    const handlePasswordChange = (e) => {
-        const { name, value } = e.target;
-        setPasswordData(prev => ({ ...prev, [name]: value }));
+    useEffect(() => {
+        const loadSecuritySettings = async () => {
+            try {
+                const response = await settingsAPI.getSecuritySettings();
+                const data = response.data.data;
+                setTwoFactorEnabled(Boolean(data.twoFactorEnabled));
+                setSessions(data.activeSessions || []);
+            } catch (error) {
+                const message = error.response?.data?.error || 'Failed to load security settings';
+                setToast({ type: 'error', message });
+            } finally {
+                setLoadingSecurity(false);
+            }
+        };
+
+        loadSecuritySettings();
+    }, [setToast]);
+
+    const handlePasswordChange = (event) => {
+        const { name, value } = event.target;
+        setPasswordData((prev) => ({ ...prev, [name]: value }));
+        setHasUnsavedChanges(true);
 
         if (name === 'newPassword') {
             calculatePasswordStrength(value);
@@ -45,15 +62,16 @@ export default function SecuritySettings({ user, setToast, setHasUnsavedChanges 
     const getPasswordStrengthLabel = () => {
         const labels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong'];
         const colors = ['text-red-600', 'text-orange-600', 'text-yellow-600', 'text-blue-600', 'text-green-600'];
-        return { label: labels[passwordStrength] || 'Very Weak', color: colors[passwordStrength] || 'text-red-600' };
+        return {
+            label: labels[passwordStrength] || 'Very Weak',
+            color: colors[passwordStrength] || 'text-red-600',
+        };
     };
 
-    const getPasswordStrengthWidth = () => {
-        return `${(passwordStrength / 5) * 100}%`;
-    };
+    const getPasswordStrengthWidth = () => `${(passwordStrength / 5) * 100}%`;
 
-    const handlePasswordSubmit = async (e) => {
-        e.preventDefault();
+    const handlePasswordSubmit = async (event) => {
+        event.preventDefault();
 
         if (passwordData.newPassword !== passwordData.confirmPassword) {
             setToast({ type: 'error', message: 'New passwords do not match' });
@@ -70,7 +88,7 @@ export default function SecuritySettings({ user, setToast, setHasUnsavedChanges 
             return;
         }
 
-        setLoading(true);
+        setUpdatingPassword(true);
         try {
             await authAPI.updatePassword({
                 currentPassword: passwordData.currentPassword,
@@ -79,24 +97,35 @@ export default function SecuritySettings({ user, setToast, setHasUnsavedChanges 
             setToast({ type: 'success', message: 'Password updated successfully!' });
             setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
             setPasswordStrength(0);
+            setHasUnsavedChanges(false);
         } catch (error) {
-            setToast({ type: 'error', message: error.response?.data?.error || 'Failed to update password' });
+            const message = error.response?.data?.error || 'Failed to update password';
+            setToast({ type: 'error', message });
         } finally {
-            setLoading(false);
+            setUpdatingPassword(false);
         }
     };
 
-    const handleToggle2FA = () => {
-        setTwoFactorEnabled(!twoFactorEnabled);
-        setToast({
-            type: 'success',
-            message: twoFactorEnabled ? 'Two-factor authentication disabled' : 'Two-factor authentication enabled'
-        });
+    const handleToggleTwoFactor = async () => {
+        try {
+            const response = await settingsAPI.toggleTwoFactor(!twoFactorEnabled);
+            setTwoFactorEnabled(response.data.data.twoFactorEnabled);
+            setToast({ type: 'success', message: response.data.message });
+        } catch (error) {
+            const message = error.response?.data?.error || 'Unable to update two-factor authentication setting';
+            setToast({ type: 'error', message });
+        }
     };
 
-    const handleEndSession = (sessionId) => {
-        setSessions(sessions.filter(s => s.id !== sessionId));
-        setToast({ type: 'success', message: 'Session terminated successfully' });
+    const handleEndSession = async (sessionId) => {
+        try {
+            await settingsAPI.endSession(sessionId);
+            setSessions((prev) => prev.filter((session) => session._id !== sessionId));
+            setToast({ type: 'success', message: 'Session terminated successfully' });
+        } catch (error) {
+            const message = error.response?.data?.error || 'Failed to terminate session';
+            setToast({ type: 'error', message });
+        }
     };
 
     return (
@@ -146,7 +175,7 @@ export default function SecuritySettings({ user, setToast, setHasUnsavedChanges 
                             />
                             <button
                                 type="button"
-                                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                onClick={() => setShowCurrentPassword((prev) => !prev)}
                                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                             >
                                 {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -172,7 +201,7 @@ export default function SecuritySettings({ user, setToast, setHasUnsavedChanges 
                             />
                             <button
                                 type="button"
-                                onClick={() => setShowNewPassword(!showNewPassword)}
+                                onClick={() => setShowNewPassword((prev) => !prev)}
                                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                             >
                                 {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -189,10 +218,13 @@ export default function SecuritySettings({ user, setToast, setHasUnsavedChanges 
                                 <div className="w-full bg-gray-200 rounded-full h-2">
                                     <div
                                         className={`h-2 rounded-full transition-all ${
-                                            passwordStrength <= 1 ? 'bg-red-500' :
-                                                passwordStrength === 2 ? 'bg-yellow-500' :
-                                                    passwordStrength === 3 ? 'bg-blue-500' :
-                                                        'bg-green-500'
+                                            passwordStrength <= 1
+                                                ? 'bg-red-500'
+                                                : passwordStrength === 2
+                                                    ? 'bg-yellow-500'
+                                                    : passwordStrength === 3
+                                                        ? 'bg-blue-500'
+                                                        : 'bg-green-500'
                                         }`}
                                         style={{ width: getPasswordStrengthWidth() }}
                                     ></div>
@@ -219,7 +251,7 @@ export default function SecuritySettings({ user, setToast, setHasUnsavedChanges 
                             />
                             <button
                                 type="button"
-                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                onClick={() => setShowConfirmPassword((prev) => !prev)}
                                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                             >
                                 {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -243,10 +275,10 @@ export default function SecuritySettings({ user, setToast, setHasUnsavedChanges 
                 <div className="flex justify-end mt-6">
                     <button
                         type="submit"
-                        disabled={loading}
+                        disabled={updatingPassword}
                         className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 font-medium transition-all disabled:opacity-50 shadow-lg"
                     >
-                        {loading ? (
+                        {updatingPassword ? (
                             <>
                                 <Loader size="sm" />
                                 <span>Updating...</span>
@@ -273,17 +305,21 @@ export default function SecuritySettings({ user, setToast, setHasUnsavedChanges 
                             Add an extra layer of security to your account
                         </p>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={twoFactorEnabled}
-                            onChange={handleToggle2FA}
-                            className="sr-only peer"
-                        />
-                        <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600"></div>
-                    </label>
+                    {loadingSecurity ? (
+                        <Loader size="sm" />
+                    ) : (
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={twoFactorEnabled}
+                                onChange={handleToggleTwoFactor}
+                                className="sr-only peer"
+                            />
+                            <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    )}
                 </div>
-                {twoFactorEnabled && (
+                {twoFactorEnabled && !loadingSecurity && (
                     <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                         <p className="text-sm text-green-800">
                             Two-factor authentication is enabled. You'll need to enter a code from your authenticator app when signing in.
@@ -302,28 +338,42 @@ export default function SecuritySettings({ user, setToast, setHasUnsavedChanges 
                     These devices are currently signed into your account
                 </p>
                 <div className="space-y-3">
+                    {loadingSecurity && (
+                        <div className="flex items-center justify-center py-6">
+                            <Loader size="sm" />
+                        </div>
+                    )}
+
+                    {!loadingSecurity && sessions.length === 0 && (
+                        <div className="p-4 bg-gray-50 rounded-lg text-sm text-gray-600">
+                            No active sessions found.
+                        </div>
+                    )}
+
                     {sessions.map((session) => (
-                        <div key={session.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
+                        <div key={session._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-blue-100 rounded-lg">
                                     <Smartphone className="text-blue-600" size={20} />
                                 </div>
                                 <div>
                                     <p className="font-semibold text-gray-800 flex items-center gap-2">
-                                        {session.device}
+                                        {session.device || 'Unknown device'}
                                         {session.current && (
                                             <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
                                                 Current
                                             </span>
                                         )}
                                     </p>
-                                    <p className="text-sm text-gray-600">{session.location}</p>
-                                    <p className="text-xs text-gray-500">Last active: {session.lastActive}</p>
+                                    <p className="text-sm text-gray-600">{session.location || 'Location unavailable'}</p>
+                                    <p className="text-xs text-gray-500">
+                                        Last active: {session.lastActive ? new Date(session.lastActive).toLocaleString() : 'Unknown'}
+                                    </p>
                                 </div>
                             </div>
                             {!session.current && (
                                 <button
-                                    onClick={() => handleEndSession(session.id)}
+                                    onClick={() => handleEndSession(session._id)}
                                     className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-all text-sm font-medium"
                                 >
                                     End Session
