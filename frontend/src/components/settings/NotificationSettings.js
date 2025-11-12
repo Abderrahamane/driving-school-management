@@ -1,55 +1,54 @@
 // frontend/src/components/settings/NotificationSettings.js
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Bell, Mail, MessageSquare, Calendar, DollarSign, Users, Car, FileText, Save } from 'lucide-react';
+import { settingsAPI } from '@/lib/api';
 
 export default function NotificationSettings({ user, setToast, setHasUnsavedChanges }) {
     const [settings, setSettings] = useState({
-        // Email Notifications
         emailEnabled: true,
         emailNewStudent: true,
         emailLessonReminder: true,
         emailPaymentReceived: true,
         emailSystemUpdate: false,
         emailWeeklyReport: true,
-
-        // SMS Notifications
         smsEnabled: false,
         smsLessonReminder: false,
         smsPaymentDue: false,
         smsEmergency: true,
-
-        // Push Notifications
         pushEnabled: true,
         pushNewStudent: true,
         pushLessonStart: true,
         pushPaymentReceived: true,
         pushSystemAlert: true,
-
-        // In-App Notifications
         inAppEnabled: true,
         inAppNewStudent: true,
         inAppLessonUpdate: true,
         inAppPayment: true,
         inAppChat: true,
     });
-
     const [originalSettings, setOriginalSettings] = useState({});
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
-        // Load saved settings from localStorage
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('notification_settings');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                setSettings(parsed);
-                setOriginalSettings(parsed);
-            } else {
-                setOriginalSettings(settings);
+        const loadSettings = async () => {
+            try {
+                const response = await settingsAPI.getNotificationSettings();
+                const data = response.data.data;
+                setSettings(data);
+                setOriginalSettings(data);
+            } catch (error) {
+                const message = error.response?.data?.error || 'Failed to load notification preferences';
+                setToast({ type: 'error', message });
+            } finally {
+                setLoading(false);
             }
-        }
-    }, []);
+        };
+
+        loadSettings();
+    }, [setToast]);
 
     useEffect(() => {
         const hasChanges = JSON.stringify(settings) !== JSON.stringify(originalSettings);
@@ -57,15 +56,23 @@ export default function NotificationSettings({ user, setToast, setHasUnsavedChan
     }, [settings, originalSettings, setHasUnsavedChanges]);
 
     const handleToggle = (key) => {
-        setSettings(prev => ({ ...prev, [key]: !prev[key] }));
+        setSettings((prev) => ({ ...prev, [key]: !prev[key] }));
     };
 
-    const handleSave = () => {
-        if (typeof window !== 'undefined') {
-            localStorage.setItem('notification_settings', JSON.stringify(settings));
-            setOriginalSettings(settings);
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            const response = await settingsAPI.updateNotificationSettings(settings);
+            const updated = response.data.data;
+            setSettings(updated);
+            setOriginalSettings(updated);
+            setToast({ type: 'success', message: response.data.message || 'Notification preferences saved successfully!' });
             setHasUnsavedChanges(false);
-            setToast({ type: 'success', message: 'Notification preferences saved successfully!' });
+        } catch (error) {
+            const message = error.response?.data?.error || 'Failed to save notification preferences';
+            setToast({ type: 'error', message });
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -129,6 +136,14 @@ export default function NotificationSettings({ user, setToast, setHasUnsavedChan
 
             {/* Notification Groups */}
             <div className="space-y-6">
+                {loading && (
+                    <div className="flex items-center justify-center py-10">
+                        <Bell className="animate-pulse text-blue-600" size={32} />
+                    </div>
+                )}
+
+                {!loading && (
+                <>
                 {notificationGroups.map((group, groupIndex) => {
                     const masterEnabled = settings[group.masterToggle];
 
@@ -189,6 +204,8 @@ export default function NotificationSettings({ user, setToast, setHasUnsavedChan
                         </div>
                     );
                 })}
+                </>
+                )}
             </div>
 
             {/* Quiet Hours */}
@@ -224,10 +241,11 @@ export default function NotificationSettings({ user, setToast, setHasUnsavedChan
             <div className="flex justify-end pt-4 border-t">
                 <button
                     onClick={handleSave}
-                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 font-medium transition-all shadow-lg"
+                    disabled={saving || loading}
+                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 font-medium transition-all shadow-lg disabled:opacity-60"
                 >
                     <Save size={18} />
-                    Save Preferences
+                    {saving ? 'Saving...' : 'Save Preferences'}
                 </button>
             </div>
         </div>

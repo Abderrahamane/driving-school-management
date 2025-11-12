@@ -36,6 +36,7 @@ import instructorRoutes from "./routes/instructor.routes.js";
 import vehicleRoutes from "./routes/vehicle.routes.js";
 import lessonRoutes from "./routes/lesson.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
+import settingsRoutes from "./routes/settings.routes.js";
 
 // API Routes - Version 1
 const API_VERSION = '/api/v1';
@@ -46,6 +47,7 @@ app.use(`${API_VERSION}/instructors`, instructorRoutes);
 app.use(`${API_VERSION}/vehicles`, vehicleRoutes);
 app.use(`${API_VERSION}/lessons`, lessonRoutes);
 app.use(`${API_VERSION}/payments`, paymentRoutes);
+app.use(`${API_VERSION}/settings`, settingsRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -69,7 +71,8 @@ app.get("/", (req, res) => {
             instructors: `${API_VERSION}/instructors`,
             vehicles: `${API_VERSION}/vehicles`,
             lessons: `${API_VERSION}/lessons`,
-            payments: `${API_VERSION}/payments`
+            payments: `${API_VERSION}/payments`,
+            settings: `${API_VERSION}/settings`
         },
         documentation: "See README.md for API documentation"
     });
@@ -105,6 +108,7 @@ const server = app.listen(PORT, () => {
 ║   • Vehicles:    ${API_VERSION}/vehicles                  ║
 ║   • Lessons:     ${API_VERSION}/lessons                   ║
 ║   • Payments:    ${API_VERSION}/payments                  ║
+║   • Settings:    ${API_VERSION}/settings                  ║
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
     `);

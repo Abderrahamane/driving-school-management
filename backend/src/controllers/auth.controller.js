@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Admin from "../models/admin.model.js";
 import jwt from "jsonwebtoken";
 import { asyncHandler, AppError } from "../middleware/error.middleware.js";
@@ -70,8 +71,36 @@ export const loginAdmin = asyncHandler(async (req, res, next) => {
         return next(new AppError('Invalid credentials', 401));
     }
 
-    // Update last login
-    admin.lastLogin = new Date();
+    // Update last login and active session information
+    const loginDate = new Date();
+    const userAgent = req.headers['user-agent'] || 'Unknown Device';
+    const ipAddress = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
+
+    admin.lastLogin = loginDate;
+    admin.securitySettings = admin.securitySettings || {};
+    admin.securitySettings.activeSessions = (admin.securitySettings.activeSessions || []).map((session) => {
+        session.current = false;
+        return session;
+    });
+
+    const deviceName = userAgent.split(')')[0]?.substring(0, 60) || userAgent.substring(0, 60) || 'Web Session';
+
+    admin.securitySettings.activeSessions.push({
+        _id: new mongoose.Types.ObjectId(),
+        device: deviceName,
+        userAgent,
+        location: ipAddress ? 'Remote Session' : 'Local Session',
+        ipAddress,
+        current: true,
+        lastActive: loginDate,
+        createdAt: loginDate
+    });
+
+    // Keep only the 10 most recent sessions
+    if (admin.securitySettings.activeSessions.length > 10) {
+        admin.securitySettings.activeSessions = admin.securitySettings.activeSessions.slice(-10);
+    }
+
     await admin.save();
 
     res.status(200).json({
@@ -110,6 +139,8 @@ export const updatePassword = asyncHandler(async (req, res, next) => {
     }
 
     admin.password = req.body.newPassword;
+    admin.securitySettings = admin.securitySettings || {};
+    admin.securitySettings.lastPasswordChange = new Date();
     await admin.save();
 
     res.status(200).json({

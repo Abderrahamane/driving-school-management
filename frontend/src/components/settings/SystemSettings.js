@@ -1,49 +1,63 @@
 // frontend/src/components/settings/SystemSettings.js
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     Database, Server, Activity, HardDrive, Cpu, BarChart,
     AlertCircle, RefreshCw, Trash2, Download, CheckCircle,
     Clock, Users, Calendar, DollarSign, Zap
 } from 'lucide-react';
 import Loader from '@/components/Loader';
+import { settingsAPI } from '@/lib/api';
 
 export default function SystemSettings({ user, setToast }) {
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
-
-    // System information (in production, fetch from API)
+    const [infoLoading, setInfoLoading] = useState(true);
     const [systemInfo, setSystemInfo] = useState({
         version: 'v1.0.0',
-        lastUpdate: '2025-11-07',
-        dbStatus: 'Connected',
-        apiStatus: 'Operational',
-        uptime: '30 days, 5 hours',
-        totalUsers: 45,
-        totalStudents: 123,
-        totalLessons: 456,
-        totalInstructors: 12,
-        totalVehicles: 15,
-        storage: { used: 2.3, total: 10, unit: 'GB' },
-        performance: {
-            cpu: 45,
-            memory: 62,
-            disk: 23,
+        lastUpdate: null,
+        dbStatus: 'Unknown',
+        apiStatus: 'Unknown',
+        uptime: '',
+        totals: {
+            users: 0,
+            students: 0,
+            lessons: 0,
+            instructors: 0,
+            vehicles: 0,
+            paymentsAmount: 0,
         },
-        recentActivity: [
-            { action: 'Student Registration', time: '2 minutes ago', status: 'success' },
-            { action: 'Lesson Scheduled', time: '15 minutes ago', status: 'success' },
-            { action: 'Payment Received', time: '1 hour ago', status: 'success' },
-            { action: 'Database Backup', time: '2 hours ago', status: 'success' },
-        ]
+        storage: { used: 0, total: 0, unit: 'GB' },
+        performance: {
+            cpu: 0,
+            memory: 0,
+            disk: 0,
+        },
+        recentActivity: [],
     });
+
+    const fetchSystemStatus = async () => {
+        try {
+            const response = await settingsAPI.getSystemStatus();
+            setSystemInfo(response.data.data);
+        } catch (error) {
+            const message = error.response?.data?.error || 'Failed to load system information';
+            setToast({ type: 'error', message });
+        } finally {
+            setInfoLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchSystemStatus();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleRefreshStats = async () => {
         setRefreshing(true);
         try {
-            // Simulate API call to refresh stats
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            await fetchSystemStatus();
             setToast({ type: 'success', message: 'System statistics refreshed successfully!' });
         } catch (error) {
             setToast({ type: 'error', message: 'Failed to refresh statistics' });
@@ -58,8 +72,8 @@ export default function SystemSettings({ user, setToast }) {
         }
         setLoading(true);
         try {
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            setToast({ type: 'success', message: 'System cache cleared successfully!' });
+            const response = await settingsAPI.clearCache();
+            setToast({ type: 'success', message: response.data.message || 'System cache cleared successfully!' });
         } catch (error) {
             setToast({ type: 'error', message: 'Failed to clear cache' });
         } finally {
@@ -73,8 +87,8 @@ export default function SystemSettings({ user, setToast }) {
         }
         setLoading(true);
         try {
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            setToast({ type: 'success', message: 'Database optimized successfully! Performance improved.' });
+            const response = await settingsAPI.optimizeDatabase();
+            setToast({ type: 'success', message: response.data.message || 'Database optimized successfully! Performance improved.' });
         } catch (error) {
             setToast({ type: 'error', message: 'Failed to optimize database' });
         } finally {
@@ -85,9 +99,8 @@ export default function SystemSettings({ user, setToast }) {
     const handleExportLogs = async () => {
         setLoading(true);
         try {
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            setToast({ type: 'success', message: 'System logs exported successfully!' });
-            // In production: trigger download of logs file
+            const response = await settingsAPI.exportLogs();
+            setToast({ type: 'success', message: response.data.message || 'System logs exported successfully!' });
         } catch (error) {
             setToast({ type: 'error', message: 'Failed to export logs' });
         } finally {
@@ -142,7 +155,7 @@ export default function SystemSettings({ user, setToast }) {
                     <p className={`text-2xl font-bold ${getStatusColor(systemInfo.dbStatus)}`}>
                         {systemInfo.dbStatus}
                     </p>
-                    <p className="text-xs text-green-700 mt-2">MongoDB • Version 7.0</p>
+                    <p className="text-xs text-green-700 mt-2">MongoDB • Status monitored</p>
                 </div>
 
                 <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200">
@@ -160,7 +173,7 @@ export default function SystemSettings({ user, setToast }) {
                     <p className={`text-2xl font-bold ${getStatusColor(systemInfo.apiStatus)}`}>
                         {systemInfo.apiStatus}
                     </p>
-                    <p className="text-xs text-blue-700 mt-2">Node.js • Version 20.x</p>
+                    <p className="text-xs text-blue-700 mt-2">Node.js • Status monitored</p>
                 </div>
             </div>
 
@@ -236,7 +249,7 @@ export default function SystemSettings({ user, setToast }) {
                     <div className="bg-gray-50 rounded-lg p-4">
                         <p className="text-sm text-gray-600 mb-1">Last Update</p>
                         <p className="text-lg font-semibold text-gray-800">
-                            {new Date(systemInfo.lastUpdate).toLocaleDateString()}
+                            {systemInfo.lastUpdate ? new Date(systemInfo.lastUpdate).toLocaleDateString() : '—'}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">4 days ago</p>
                     </div>
@@ -288,27 +301,27 @@ export default function SystemSettings({ user, setToast }) {
                 <div className="grid grid-cols-5 gap-4">
                     <div className="text-center p-4 bg-blue-50 rounded-lg">
                         <Users size={24} className="mx-auto text-blue-600 mb-2" />
-                        <p className="text-2xl font-bold text-blue-900">{systemInfo.totalUsers}</p>
+                        <p className="text-2xl font-bold text-blue-900">{systemInfo.totals?.users ?? 0}</p>
                         <p className="text-xs text-blue-800 mt-1">System Users</p>
                     </div>
                     <div className="text-center p-4 bg-green-50 rounded-lg">
                         <Users size={24} className="mx-auto text-green-600 mb-2" />
-                        <p className="text-2xl font-bold text-green-900">{systemInfo.totalStudents}</p>
+                        <p className="text-2xl font-bold text-green-900">{systemInfo.totals?.students ?? 0}</p>
                         <p className="text-xs text-green-800 mt-1">Students</p>
                     </div>
                     <div className="text-center p-4 bg-purple-50 rounded-lg">
                         <Calendar size={24} className="mx-auto text-purple-600 mb-2" />
-                        <p className="text-2xl font-bold text-purple-900">{systemInfo.totalLessons}</p>
+                        <p className="text-2xl font-bold text-purple-900">{systemInfo.totals?.lessons ?? 0}</p>
                         <p className="text-xs text-purple-800 mt-1">Lessons</p>
                     </div>
                     <div className="text-center p-4 bg-orange-50 rounded-lg">
                         <Users size={24} className="mx-auto text-orange-600 mb-2" />
-                        <p className="text-2xl font-bold text-orange-900">{systemInfo.totalInstructors}</p>
+                        <p className="text-2xl font-bold text-orange-900">{systemInfo.totals?.instructors ?? 0}</p>
                         <p className="text-xs text-orange-800 mt-1">Instructors</p>
                     </div>
                     <div className="text-center p-4 bg-yellow-50 rounded-lg">
                         <Activity size={24} className="mx-auto text-yellow-600 mb-2" />
-                        <p className="text-2xl font-bold text-yellow-900">{systemInfo.totalVehicles}</p>
+                        <p className="text-2xl font-bold text-yellow-900">{systemInfo.totals?.vehicles ?? 0}</p>
                         <p className="text-xs text-yellow-800 mt-1">Vehicles</p>
                     </div>
                 </div>
@@ -321,6 +334,16 @@ export default function SystemSettings({ user, setToast }) {
                     Recent Activity
                 </h3>
                 <div className="space-y-3">
+                    {infoLoading && (
+                        <div className="flex items-center justify-center py-6 text-sm text-gray-600">
+                            Loading recent activity...
+                        </div>
+                    )}
+                    {!infoLoading && systemInfo.recentActivity.length === 0 && (
+                        <div className="p-4 bg-gray-50 rounded-lg text-sm text-gray-600">
+                            No recent activity available.
+                        </div>
+                    )}
                     {systemInfo.recentActivity.map((activity, index) => (
                         <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
                             <div className="flex items-center gap-3">
@@ -333,7 +356,9 @@ export default function SystemSettings({ user, setToast }) {
                                 </div>
                                 <div>
                                     <p className="text-sm font-semibold text-gray-800">{activity.action}</p>
-                                    <p className="text-xs text-gray-500">{activity.time}</p>
+                                    <p className="text-xs text-gray-500">
+                                        {activity.time ? new Date(activity.time).toLocaleString() : '—'}
+                                    </p>
                                 </div>
                             </div>
                         </div>
