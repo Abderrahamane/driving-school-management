@@ -52,7 +52,7 @@ export default function LessonsPage() {
 
     // Debug logging with better error handling
     if (error) {
-        console.error('Lessons fetch error:', error);
+        console.log('Lessons fetch error:', error);
     }
     if (data) {
         console.log('Lessons data:', data);
