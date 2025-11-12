@@ -100,7 +100,10 @@ const vehicleSchema = new mongoose.Schema({
         type: Number,
         min: 0
     },
-    maintenanceHistory: [maintenanceRecordSchema],
+    maintenanceHistory: {
+        type: [maintenanceRecordSchema],
+        default: []
+    },
     fuelType: {
         type: String,
         enum: ['petrol', 'diesel', 'electric', 'hybrid'],
@@ -160,7 +163,11 @@ const vehicleSchema = new mongoose.Schema({
 
 // Virtual for total maintenance cost
 vehicleSchema.virtual('totalMaintenanceCost').get(function() {
-    return this.maintenanceHistory.reduce((total, record) => total + (record.cost || 0), 0);
+    if (!Array.isArray(this.maintenanceHistory) || this.maintenanceHistory.length === 0) {
+        return 0;
+    }
+
+    return this.maintenanceHistory.reduce((total, record = {}) => total + (record.cost || 0), 0);
 });
 
 // Virtual for age
